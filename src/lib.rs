@@ -47,6 +47,12 @@ pub struct BlstP2Element {
     _val: blst::blst_p2,
 }
 
+#[pyclass]
+#[derive(Clone)]
+pub struct BlstFP12Element {
+    _val: blst::blst_fp12,
+}
+
 
 
 
@@ -390,10 +396,65 @@ impl BlstP2Element {
     
 }
 
+#[pyfunction]
+pub fn miller_loop(
+    arg1: BlstP1Element,
+    arg2: BlstP2Element,
+) -> PyResult<BlstFP12Element> {
+    let mut out = blst::blst_fp12::default();
+
+    let mut affine1 = blst::blst_p1_affine::default();
+    let mut affine2 = blst::blst_p2_affine::default();
+
+    unsafe {
+        blst::blst_p1_to_affine(&mut affine1 as *mut _, &arg1._val);
+        blst::blst_p2_to_affine(&mut affine2 as *mut _, &arg2._val);
+
+        blst::blst_miller_loop(&mut out as *mut _, &affine2, &affine1);
+    }
+
+    Ok(BlstFP12Element { _val: out })
+}
+
+#[pymethods]
+impl BlstFP12Element {
+    #[new]
+    fn new() -> Self {
+        BlstFP12Element {
+            _val: blst::blst_fp12::default(),
+        }
+    }
+
+    fn __mul__(&self, arg: Self) -> PyResult<Self> {
+        let arg1 = &self._val;
+        let arg2 = &arg._val;
+
+        let mut out = blst::blst_fp12::default();
+
+        unsafe {
+            blst::blst_fp12_mul(&mut out as *mut _, arg1, arg2);
+        }
+        Ok(BlstFP12Element { _val: out })
+    }
+}
+
+#[pyfunction]
+pub fn final_verify(
+    arg1: BlstFP12Element,
+    arg2: BlstFP12Element,
+) -> PyResult<bool> {
+    let verified = unsafe { blst::blst_fp12_finalverify(&arg1._val, &arg2._val) };
+
+    Ok(verified)
+}
 
 /// A Python module implemented in Rust.
 #[pymodule]
 fn pyblst(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<BlstP1Element>()?;
+    m.add_class::<BlstP2Element>()?;
+    m.add_class::<BlstFP12Element>()?;
+    m.add_function(wrap_pyfunction!(miller_loop, m)?)?;
+    m.add_function(wrap_pyfunction!(final_verify, m)?)?;
     Ok(())
 }
