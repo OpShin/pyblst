@@ -36,17 +36,17 @@ impl std::convert::From<Error> for PyErr {
 
 
 #[pyclass]
+#[derive(Clone)]
 pub struct BlstP1Element {
     _val: blst::blst_p1,
 }
 
-impl Clone for BlstP1Element {
-    fn clone(&self) -> Self {
-        BlstP1Element {
-            _val: self._val.clone(),
-        }
-    }
+#[pyclass]
+#[derive(Clone)]
+pub struct BlstP2Element {
+    _val: blst::blst_p2,
 }
+
 
 
 
@@ -265,6 +265,130 @@ impl BlstP1Element {
     
 }
 
+#[pymethods]
+impl BlstP2Element {
+    #[new]
+    fn new() -> Self {
+        BlstP2Element {
+            _val: blst::blst_p2::default(),
+        }
+    }
+
+    fn compress(&self) -> Vec<u8> {
+        self._val.compress()
+    }
+
+    #[classmethod]
+    fn uncompress(_: &Bound<'_, PyType>, arg1: Bound<'_, PyBytes>) -> Result<Self, Error> {
+        let out = blst::blst_p2::uncompress(&arg1.as_bytes())?;
+        Ok(BlstP2Element { _val: out })
+    }
+    fn __add__(
+        &self,
+        arg2: BlstP2Element,
+    ) -> PyResult<BlstP2Element> {
+        let arg1 = self;
+        let mut out = blst::blst_p2::default();
+
+        unsafe {
+            blst::blst_p2_add_or_double(
+                &mut out as *mut _,
+                &arg1._val as *const _,
+                &arg2._val as *const _,
+            );
+        }
+        return Ok(BlstP2Element { _val: out });
+    }
+
+    fn __neg__(&self) -> PyResult<BlstP2Element> {
+        let mut out = self._val.clone();
+        unsafe {
+            blst::blst_p2_cneg(&mut out as *mut _, true);
+        }
+        return Ok(BlstP2Element { _val: out });
+    }
+
+    fn scalar_mul(
+        &self,
+        arg: BigInt,
+    ) -> PyResult<BlstP2Element> {
+        // Taken from aiken implementation, not clear if this is just mul or more operations
+        let arg1 = arg;
+        let arg2 = &self._val;
+        let size_scalar = size_of::<blst::blst_scalar>();
+
+        let arg1 = arg1.mod_floor(&SCALAR_PERIOD);
+
+        let (_, mut arg1) = arg1.to_bytes_be();
+
+        if size_scalar > arg1.len() {
+            let diff = size_scalar - arg1.len();
+
+            let mut new_vec = vec![0; diff];
+
+            new_vec.append(&mut arg1);
+
+            arg1 = new_vec;
+        }
+
+        let mut out = blst::blst_p2::default();
+        let mut scalar = blst::blst_scalar::default();
+
+        unsafe {
+            blst::blst_scalar_from_bendian(
+                &mut scalar as *mut _,
+                arg1.as_ptr() as *const _,
+            );
+
+            blst::blst_p2_mult(
+                &mut out as *mut _,
+                arg2 as *const _,
+                scalar.b.as_ptr() as *const _,
+                size_scalar * 8,
+            );
+        }
+        Ok(BlstP2Element { _val: out })
+    }
+
+    fn __eq__(&self, other: &BlstP2Element) -> PyResult<bool> {
+        let arg1 = &self._val;
+        let arg2 = &other._val;
+        let is_equal = unsafe { blst::blst_p2_is_equal(arg1, arg2) };
+        Ok(is_equal)
+    }
+
+    #[classmethod]
+    fn hash_to_group(
+        _: &Bound<'_, PyType>,
+        arg1: Bound<'_, PyBytes>,
+        arg2: Bound<'_, PyBytes>,
+    ) -> PyResult<BlstP2Element> {
+        let dst = arg1.as_bytes();
+        let msg = arg2.as_bytes();
+
+        if msg.len() > 255 {
+            return Err(Error::HashToCurveDstTooBig.into());
+        }
+
+        let mut out = blst::blst_p2::default();
+        let aug = [];
+
+        unsafe {
+            blst::blst_hash_to_g2(
+                &mut out as *mut _,
+                dst.as_ptr(),
+                dst.len(),
+                msg.as_ptr(),
+                msg.len(),
+                aug.as_ptr(),
+                0,
+            );
+        };
+
+        Ok(BlstP2Element { _val: out} )
+    }
+    
+}
 
 
 /// A Python module implemented in Rust.
