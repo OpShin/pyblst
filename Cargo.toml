@@ -11,5 +11,7 @@ crate-type = ["cdylib"]
 [dependencies]
 blst = "0.3.13"
 miette = "5.10.0"
-pyo3 = { version = "0.23.3", features = ["extension-module"] }
+num-bigint = "0.4.6"
+num-integer = "0.1.46"
+pyo3 = { version = "0.23.3", features = ["extension-module", "num-bigint"] }
 thiserror = "2.0.9"

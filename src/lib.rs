@@ -1,5 +1,19 @@
 use pyo3::{prelude::*, exceptions::PyValueError};
-use pyo3::types::PyBytes;
+use pyo3::types::{PyBytes, PyType};
+use num_bigint::BigInt;
+use num_integer::Integer;
+use std::sync::LazyLock;
+
+static SCALAR_PERIOD: LazyLock<BigInt> = LazyLock::new(|| {
+    BigInt::from_bytes_be(
+        num_bigint::Sign::Plus,
+        &[
+            0x73, 0xed, 0xa7, 0x53, 0x29, 0x9d, 0x7d, 0x48, 0x33, 0x39, 0xd8, 0x08, 0x09, 0xa1,
+            0xd8, 0x05, 0x53, 0xbd, 0xa4, 0x02, 0xff, 0xfe, 0x5b, 0xfe, 0xff, 0xff, 0xff, 0xff,
+            0x00, 0x00, 0x00, 0x01,
+        ],
+    )
+});
 
 const BLST_P1_COMPRESSED_SIZE: usize = 48;
 
@@ -35,22 +49,6 @@ impl Clone for BlstP1Element {
 }
 
 
-#[pyfunction]
-pub fn blst_p1_add_or_double(
-    arg1: BlstP1Element,
-    arg2: BlstP1Element,
-) -> PyResult<BlstP1Element> {
-    let mut out = blst::blst_p1::default();
-
-    unsafe {
-        blst::blst_p1_add_or_double(
-            &mut out as *mut _,
-            &arg1._val as *const _,
-            &arg2._val as *const _,
-        );
-    }
-    return Ok(BlstP1Element { _val: out });
-}
 
 // Compressable trait and implementations taken over with thanks from aiken
 // https://github.com/aiken-lang/aiken/blob/e1d46fa8f063445da8c0372e3c031c8a11ad0b14/crates/uplc/src/machine/runtime.rs#L1769C1-L1855C2
@@ -142,13 +140,129 @@ impl Compressable for blst::blst_p2 {
     }
 }
 
-#[pyfunction]
-pub fn blst_p1_uncompress(
-    arg1: Bound<'_, PyBytes>,
-) -> PyResult<BlstP1Element> {
-    let out = blst::blst_p1::uncompress(&arg1.as_bytes())?;
+#[pymethods]
+impl BlstP1Element {
+    #[new]
+    fn new() -> Self {
+        BlstP1Element {
+            _val: blst::blst_p1::default(),
+        }
+    }
 
-    return Ok(BlstP1Element { _val: out });
+    fn compress(&self) -> Vec<u8> {
+        self._val.compress()
+    }
+
+    #[classmethod]
+    fn uncompress(_: &Bound<'_, PyType>, arg1: Bound<'_, PyBytes>) -> Result<Self, Error> {
+        let out = blst::blst_p1::uncompress(&arg1.as_bytes())?;
+        Ok(BlstP1Element { _val: out })
+    }
+    fn __add__(
+        &self,
+        arg2: BlstP1Element,
+    ) -> PyResult<BlstP1Element> {
+        let arg1 = self;
+        let mut out = blst::blst_p1::default();
+
+        unsafe {
+            blst::blst_p1_add_or_double(
+                &mut out as *mut _,
+                &arg1._val as *const _,
+                &arg2._val as *const _,
+            );
+        }
+        return Ok(BlstP1Element { _val: out });
+    }
+
+    fn __neg__(&self) -> PyResult<BlstP1Element> {
+        let mut out = self._val.clone();
+        unsafe {
+            blst::blst_p1_cneg(&mut out as *mut _, true);
+        }
+        return Ok(BlstP1Element { _val: out });
+    }
+
+    fn scalar_mul(
+        &self,
+        arg: BigInt,
+    ) -> PyResult<BlstP1Element> {
+        // Taken from aiken implementation, not clear if this is just mul or more operations
+        let arg1 = arg;
+        let arg2 = &self._val;
+        let size_scalar = size_of::<blst::blst_scalar>();
+
+        let arg1 = arg1.mod_floor(&SCALAR_PERIOD);
+
+        let (_, mut arg1) = arg1.to_bytes_be();
+
+        if size_scalar > arg1.len() {
+            let diff = size_scalar - arg1.len();
+
+            let mut new_vec = vec![0; diff];
+
+            new_vec.append(&mut arg1);
+
+            arg1 = new_vec;
+        }
+
+        let mut out = blst::blst_p1::default();
+        let mut scalar = blst::blst_scalar::default();
+
+        unsafe {
+            blst::blst_scalar_from_bendian(
+                &mut scalar as *mut _,
+                arg1.as_ptr() as *const _,
+            );
+
+            blst::blst_p1_mult(
+                &mut out as *mut _,
+                arg2 as *const _,
+                scalar.b.as_ptr() as *const _,
+                size_scalar * 8,
+            );
+        }
+        Ok(BlstP1Element { _val: out })
+    }
+
+    fn __eq__(&self, other: &BlstP1Element) -> PyResult<bool> {
+        let arg1 = &self._val;
+        let arg2 = &other._val;
+        let is_equal = unsafe { blst::blst_p1_is_equal(arg1, arg2) };
+        Ok(is_equal)
+    }
+
+    #[classmethod]
+    fn hash_to_group(
+        _: &Bound<'_, PyType>,
+        arg1: Bound<'_, PyBytes>,
+        arg2: Bound<'_, PyBytes>,
+    ) -> PyResult<BlstP1Element> {
+        let dst = arg1.as_bytes();
+        let msg = arg2.as_bytes();
+
+        if msg.len() > 255 {
+            return Err(Error::HashToCurveDstTooBig.into());
+        }
+
+        let mut out = blst::blst_p1::default();
+        let aug = [];
+
+        unsafe {
+            blst::blst_hash_to_g1(
+                &mut out as *mut _,
+                dst.as_ptr(),
+                dst.len(),
+                msg.as_ptr(),
+                msg.len(),
+                aug.as_ptr(),
+                0,
+            );
+        };
+
+        Ok(BlstP1Element { _val: out} )
+    }
+    
 }
 
 
@@ -156,7 +270,6 @@ pub fn blst_p1_uncompress(
 /// A Python module implemented in Rust.
 #[pymodule]
 fn pyblst(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(blst_p1_add_or_double, m)?)?;
-    m.add_function(wrap_pyfunction!(blst_p1_uncompress, m)?)?;
+    m.add_class::<BlstP1Element>()?;
     Ok(())
 }
