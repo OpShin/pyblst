@@ -1,0 +1,15 @@
+[package]
+name = "pyblst"
+version = "0.3.13"
+edition = "2021"
+rust-version = "1.66.1"
+
+[lib]
+name = "pyblst"
+crate-type = ["cdylib"]
+
+[dependencies]
+blst = "0.3.13"
+miette = "5.10.0"
+pyo3 = { version = "0.23.3", features = ["extension-module"] }
+thiserror = "2.0.9"
