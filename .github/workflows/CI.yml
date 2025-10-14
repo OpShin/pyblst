@@ -38,7 +38,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: wheels-linux-${{ matrix.python-version }}-${{ matrix.target }}
-          path: dist-linux-${{ matrix.python-version }}-${{ matrix.target }}
+          path: dist
 
   windows:
     runs-on: windows-latest
@@ -63,7 +63,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: wheels-windows-${{ matrix.python-version }}-${{ matrix.target }}
-          path: dist-windows-${{ matrix.python-version }}-${{ matrix.target }}
+          path: dist
 
   macos:
     runs-on: macos-latest
@@ -85,7 +85,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: wheels-macos-${{ matrix.python-version }}-${{ matrix.target }}
-          path: dist-macos-${{ matrix.python-version }}-${{ matrix.target }}
+          path: dist
 
   sdist:
     runs-on: ubuntu-latest
@@ -100,7 +100,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: wheels-sdist-${{ matrix.python-version }}-${{ matrix.target }}
-          path: dist-sdist-${{ matrix.python-version }}-${{ matrix.target }}
+          path: dist
 
   release:
     name: Release
