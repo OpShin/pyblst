@@ -113,14 +113,20 @@ jobs:
       - name: Merge wheels
         run: |
           mkdir dist
-          for d in $(find . -type d -name 'dist-*'); do
-              cp $d/* dist/
+          for d in $(find . -type d -name 'wheels-*'); do
+              echo "Merging $d"
+              cp -v $d/* dist/
           done
-      # If there isn't a release for this version, create a new one.
-      - name: Publish to PyPI
-        uses: PyO3/maturin-action@v1
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+      - name: Install Python 3.13
+        run: uv python install 3.13
+      # Check that basic features work and we didn't miss to include crucial files
+      - name: Smoke test (wheel)
+        run: uv run --isolated --no-project --with dist/*.whl tests/test_associative.py
+      - name: Smoke test (source distribution)
+        run: uv run --isolated --no-project --with dist/*.tar.gz tests/test_associative.py
+      - name: Publish
+        run: uv publish
         env:
-          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-        with:
-          command: upload
-          args: --non-interactive --skip-existing *
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
