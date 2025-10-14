@@ -1,0 +1,8 @@
+version = 1
+revision = 3
+requires-python = ">=3.9"
+
+[[package]]
+name = "pyblst"
+version = "0.3.13"
+source = { editable = "." }
