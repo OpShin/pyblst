@@ -9,9 +9,9 @@ name = "pyblst"
 crate-type = ["cdylib"]
 
 [dependencies]
-blst = "0.3.13"
+blst = "0.3.16"
 miette = "5.10.0"
 num-bigint = "0.4.6"
 num-integer = "0.1.46"
 pyo3 = { version = "0.26.0", features = ["extension-module", "num-bigint"] }
-thiserror = "2.0.9"
+thiserror = "2.0.17"
