@@ -83,7 +83,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-macos-${{ matrix.python-version }}-${{ matrix.target }}
+          name: wheels-macos-${{ matrix.target }}
           path: dist
 
   sdist:
@@ -94,11 +94,11 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: sdist
-          args: --out dist
+          args: --out dist --find-interpreter
       - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-sdist-${{ matrix.python-version }}-${{ matrix.target }}
+          name: wheels-sdist-${{ matrix.target }}
           path: dist
 
   release:
