@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "pyblst"
-version = "0.3.13"
+version = "0.3.14"
 requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Rust",
