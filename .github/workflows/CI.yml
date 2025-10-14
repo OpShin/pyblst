@@ -37,8 +37,8 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.python-version }}-${{ matrix.target }}
-          path: dist
+          name: wheels-linux-${{ matrix.python-version }}-${{ matrix.target }}
+          path: dist-linux-${{ matrix.python-version }}-${{ matrix.target }}
 
   windows:
     runs-on: windows-latest
@@ -62,8 +62,8 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.python-version }}-${{ matrix.target }}
-          path: dist
+          name: wheels-windows-${{ matrix.python-version }}-${{ matrix.target }}
+          path: dist-windows-${{ matrix.python-version }}-${{ matrix.target }}
 
   macos:
     runs-on: macos-latest
@@ -84,8 +84,8 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.python-version }}-${{ matrix.target }}
-          path: dist
+          name: wheels-macos-${{ matrix.python-version }}-${{ matrix.target }}
+          path: dist-macos-${{ matrix.python-version }}-${{ matrix.target }}
 
   sdist:
     runs-on: ubuntu-latest
@@ -99,8 +99,8 @@ jobs:
       - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:
-          name: wheels
-          path: dist
+          name: wheels-sdist-${{ matrix.python-version }}-${{ matrix.target }}
+          path: dist-sdist-${{ matrix.python-version }}-${{ matrix.target }}
 
   release:
     name: Release
@@ -108,9 +108,16 @@ jobs:
     if: "startsWith(github.ref, 'refs/tags/')"
     needs: [linux, windows, macos, sdist]
     steps:
+      # download all artifacts from all build jobs
       - uses: actions/download-artifact@v5
-        with:
-          name: wheels-*
+      # merge them into a single directory
+      - name: Merge wheels
+        run: |
+          mkdir dist
+          for d in $(find . -type d -name 'dist-*'); do
+              cp $d/* dist/
+          done
+      # If there isn't a release for this version, create a new one.
       - name: Publish to PyPI
         uses: PyO3/maturin-action@v1
         env:
