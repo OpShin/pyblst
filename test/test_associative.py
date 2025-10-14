@@ -331,3 +331,8 @@ def test_g1_add_associative_2():
         )
     )
     assert a + b + c == (a + b) + c
+
+if __name__ == '__main__':
+    test_g1_add_associative()
+    test_g1_add_associative_2()
+    print("All tests passed.")

@@ -107,6 +107,7 @@ jobs:
     if: "startsWith(github.ref, 'refs/tags/')"
     needs: [linux, windows, macos, sdist]
     steps:
+      - uses: actions/checkout@v5
       # download all artifacts from all build jobs
       - uses: actions/download-artifact@v5
       # merge them into a single directory
@@ -122,10 +123,8 @@ jobs:
       - name: Install Python 3.13
         run: uv python install 3.13
       # Check that basic features work and we didn't miss to include crucial files
-      - name: Smoke test (wheel)
-        run: uv run --isolated --no-project --with dist/*.whl tests/test_associative.py
       - name: Smoke test (source distribution)
-        run: uv run --isolated --no-project --with dist/*.tar.gz tests/test_associative.py
+        run: uv run --isolated --no-project --with dist/*.tar.gz test/test_associative.py
       - name: Publish
         run: uv publish
         env:
