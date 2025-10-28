@@ -1,7 +1,6 @@
 pyblst
 =======
 [![CI](https://github.com/OpShin/pyblst/actions/workflows/CI.yml/badge.svg)](https://github.com/OpShin/pyblst/actions/workflows/CI.yml)
-[![Build Status](https://app.travis-ci.com/OpShin/pyblst.svg?branch=master)](https://app.travis-ci.com/OpShin/pyblst)
 [![PyPI version](https://badge.fury.io/py/pyblst.svg)](https://pypi.org/project/pyblst/)
 [![PyPI - Status](https://img.shields.io/pypi/status/pyblst.svg)](https://pypi.org/project/pyblst/)
 
